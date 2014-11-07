@@ -3,7 +3,7 @@ use 5.008001;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.01_01';
 
 use base 'Exporter::Tiny';
 our @EXPORT = qw| read_games |;
@@ -152,7 +152,7 @@ L<https://bitbucket.org/mnacamura/chess-pgn-extract/issues>.
 
 =head1 AUTHOR
 
-Mitsuhiro Nakamura E<lt>m.nacamura@gmail.comE<gt>
+Mitsuhiro Nakamura <m.nacamura@gmail.com>
 
 Many thanks to David J. Barnes for his original development of
 L<pgn-extract|http://www.cs.kent.ac.uk/people/staff/djb/pgn-extract/> and

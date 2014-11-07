@@ -113,7 +113,7 @@ Notation (PGN) files.
 
 Create a stream instance from the C<$pgn_file>.
 
-=item B<$self-E<gt>pgn_file> (read only)
+=item B<$self-E<gt>pgn_file>
 
 PGN file name from which the stream reads games.
 
@@ -141,7 +141,7 @@ L<https://bitbucket.org/mnacamura/chess-pgn-extract/issues>.
 
 =head1 AUTHOR
 
-Mitsuhiro Nakamura E<lt>m.nacamura@gmail.comE<gt>
+Mitsuhiro Nakamura <m.nacamura@gmail.com>
 
 Many thanks to David J. Barnes for his original development of
 L<pgn-extract|http://www.cs.kent.ac.uk/people/staff/djb/pgn-extract/> and

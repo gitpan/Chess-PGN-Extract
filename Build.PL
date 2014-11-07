@@ -5,6 +5,8 @@ use Module::Build::Pluggable qw| CPANfile |;
 
 my $build = Module::Build::Pluggable->new (
   module_name => 'Chess::PGN::Extract',
+  license     => 'perl',
+
 );
 
 $build->create_build_script;
