@@ -9,6 +9,7 @@ our @EXPORT = qw| pgn_file read_game read_games |;
 use Carp       qw| croak |;
 use File::Temp qw| tempdir tempfile |;
 use Chess::PGN::Extract 'read_games' => { -prefix => '_' };
+use IO::Handle;
 
 sub new {
   my ( $class, $pgn_file ) = @_;
@@ -36,48 +37,126 @@ sub read_games {
   my ($limit) = @_;
 
   my $handle = $self->{pgn_handle};
-  return if eof $handle;
+  return if $handle->eof;
 
-  if ( ( not defined $limit ) || $limit < 0 ) {
-    # Slurp the PGN file if $limit is not set or negative
-    my $all = do { local $/; <$handle> };
-    return ( _read_pgn_string ($all) );
+  unless ( defined $limit ) {
+    return _read_all ($handle);
   }
-  elsif ( $limit == 0 ) {return}
+
+  # Force integer
+  $limit = int $limit;
+
+  if    ( $limit  < 0 ) { _read_all ($handle) }
+  elsif ( $limit == 0 ) { return }
   else {
-    my @games;
-    my @lines = ( scalar readline $handle );
-    while ( my $line = readline $handle ) {
-      unless ( $line =~ /^\[Event / ) {
-        # We merely check the end of a game by the above regex.
-        # It should be implemented by a more strict manner.
-        push @lines, $line;
+    my ( $game, @games );
+    while ( $limit-- and $game = _get_one_game_string ($handle) ) {
+      push @games, $game;
+    }
+    return _read_pgn_string ( join '', @games );
+  }
+}
+
+{
+  # Parser contexts:
+  #   $start        - Before parsing tag sections
+  #   $expect_tag   - Parsing tag sections has started
+  #   $expect_moves - Parsing moves section has started
+  my ( $start, $expect_tag, $expect_moves ) = 0 .. 2;
+
+  # Regular expressions to identify which section the given $line is
+  my $blank     = qr/^[\s\t]*\n$/;
+  my $tag       = qr/^[\s\t]*\[[\s\t]*\w+[\s\t]+\".+\"[\s\t]*\][\s\t]*\n$/;
+  my $tag_begin = qr/^[\s\t]*\[/;
+  # my $moves = ...;
+
+  # _get_one_game_string ($handle) => $pgn_string
+  sub _get_one_game_string {
+    my $context = $start;
+    _parse_lines ( $_[0], $context, [] );
+  }
+
+  # _parse_lines ($handle, $context, $buffer) => $pgn_string
+  sub _parse_lines {
+    return join '', @{ $_[2] } if $_[0]->eof;
+
+    my $line = $_[0]->getline;
+
+    # Ignore blank lines
+    goto \&_parse_lines if $line =~ $blank;
+
+    if ( $_[1] == $start ) {
+
+      if ( $line =~ $tag_begin ) {
+        _complete_tag_line ($_[0], $line);
+        push @{ $_[2] }, $line;
+        $_[1] = $expect_tag;
+        goto \&_parse_lines;
       }
       else {
-        push @games, join ( '', @lines );
-        unless ( --$limit > 0 ) {
-          return ( _read_pgn_string ( join ( '', @games ) ) );
-        }
-        @lines = ($line);
+        croak ("PGN parse error: Move section started without any tags");
       }
     }
-    push @games, join ( '', @lines );
-    return ( _read_pgn_string ( join ( '', @games ) ) );
+    elsif ( $_[1] == $expect_tag ) {
+
+      if ( $line =~ $tag_begin ) {
+        _complete_tag_line ($_[0], $line);
+        push @{ $_[2] }, $line;
+        goto \&_parse_lines;
+      }
+      else {
+        push @{ $_[2] }, $line;
+        $_[1] = $expect_moves;
+        goto \&_parse_lines;
+      }
+    }
+    elsif ( $_[1] == $expect_moves ) {
+
+      if ( $line =~ $tag_begin ) {
+        seek $_[0], -length $line, 1;    # go back to the head of $line
+        return join '', @{ $_[2] };
+      }
+      else {
+        push @{ $_[2] }, $line;
+        goto \&_parse_lines;
+      }
+    }
+    else {
+      croak ("PGN parse error: Unknown context");
+    }
+    croak ("PGN parse error: Unknown parse error");
   }
+
+  # _complete_tag_line ($handle, $partial_tag_line)
+  sub _complete_tag_line {
+    return if $_[1] =~ $tag;
+    if ( $_[0]->eof ) {
+      croak ("PGN parse error: Parse finished inside a tag section");
+    }
+    chomp $_[1];
+    $_[1] .= $_[0]->getline;
+    goto \&_complete_tag_line;
+  }
+}
+
+# _read_all ($handle) => @games
+sub _read_all {
+  my $handle = shift;
+  my $all = do { local $/; $handle->getline };
+  _read_pgn_string ($all);
 }
 
 # _read_pgn_string ($pgn_string) => @games
 sub _read_pgn_string {
   my ($pgn_string) = @_;
 
-  my $tmp_dir = tempdir (
-    $ENV{TMPDIR} . "/chess_pgn_extract_stream_XXXXXXXX",
+  my $tmp_dir = tempdir ( $ENV{TMPDIR} . "/chess_pgn_extract_stream_XXXXXXXX",
     CLEANUP => 1 );
   my ( $tmp_handle, $tmp_file ) = tempfile ( DIR => $tmp_dir );
-  print $tmp_handle $pgn_string;
-  close $tmp_handle;
+  $tmp_handle->print ($pgn_string);
+  $tmp_handle->close;
 
-  return ( _read_games ($tmp_file) );
+  return _read_games ($tmp_file);
 }
 
 1;

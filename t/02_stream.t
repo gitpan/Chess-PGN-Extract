@@ -17,6 +17,10 @@ my @games = $strm->read_game;
 is ( @games, 1,
   "'read_game ()' returns only one game" );
 
+@games = $strm->read_games (0.1);
+is ( @games, 0,
+  "In 'read_games (\$limit)', \$limit is coearced to be integer" );
+
 my $n = 1 + int rand 5;
 @games = $strm->read_games ($n);
 is ( @games, $n,

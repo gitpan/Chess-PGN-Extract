@@ -3,7 +3,7 @@ use 5.008001;
 use strict;
 use warnings;
 
-our $VERSION = '0.01_01';
+our $VERSION = '0.02';
 
 use base 'Exporter::Tiny';
 our @EXPORT = qw| read_games |;
@@ -25,7 +25,10 @@ sub read_games {
   my $out = do { local $/; $proc->stdout->getline };
   my @err = $proc->stderr->getlines;
   if (@err) {
-    print STDERR "pgn-extract: $_" for @err;
+    if ($err[0] =~ /Unknown output format json/) {
+      croak ("PGN parse error: pgn-extract has no '-Wjson' option");
+    }
+    STDERR->print ("pgn-extract: $_") for @err;
   }
   $proc->wait_child; # cleanup
 
@@ -35,7 +38,7 @@ sub read_games {
   # JSON::XS. At present, I've found the control 'B' and back quote in
   # practice.
   if ( $out =~ s/[\cB\\]//g ) {
-    print STDERR "Invalid characters found\n";
+    STDERR->print ("Invalid characters found\n");
   }
 
   $out = encode_utf8 ($out);
@@ -57,7 +60,7 @@ sub read_games {
     }
     else {
       my $invalid_game = dump ($_);
-      print STDERR "Invalid PGN omitted: $invalid_game\n";
+      STDERR->print ("Invalid PGN omitted: $invalid_game\n");
       0;
     }
   } @$decoded;
@@ -67,7 +70,7 @@ sub read_games {
     delete $_->{fhash};
   }
 
-  return (@games);
+  return @games;
 }
 
 1;

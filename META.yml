@@ -21,7 +21,7 @@ name: Chess-PGN-Extract
 provides:
   Chess::PGN::Extract:
     file: lib/Chess/PGN/Extract.pm
-    version: 0.01_01
+    version: '0.02'
   Chess::PGN::Extract::Stream:
     file: lib/Chess/PGN/Extract/Stream.pm
 requires:
@@ -37,4 +37,4 @@ requires:
   perl: '5.008001'
 resources:
   license: http://dev.perl.org/licenses/
-version: 0.01_01
+version: '0.02'
